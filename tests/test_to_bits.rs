@@ -1,10 +1,10 @@
+#![cfg(feature = "bits")]
+
 use core::convert::TryFrom;
 
-#[cfg(feature = "bits")]
 use deku::bitvec::Lsb0;
 use deku::prelude::*;
 
-#[cfg(feature = "bits")]
 #[derive(PartialEq, Debug, DekuRead, DekuWrite)]
 pub struct Test {
     #[deku(bits = "4")]
@@ -13,7 +13,6 @@ pub struct Test {
     pub b: u8,
 }
 
-#[cfg(feature = "bits")]
 #[test]
 fn test_to_bits_correct() {
     let test_data: &[u8] = &[0xf1];
