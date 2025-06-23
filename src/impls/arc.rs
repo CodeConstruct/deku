@@ -79,7 +79,8 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
-    use crate::ctx::*;
+    #[cfg(feature = "bits")]
+    use crate::ctx::{BitSize, Endian};
     use crate::native_endian;
     use crate::reader::Reader;
     #[cfg(feature = "bits")]
