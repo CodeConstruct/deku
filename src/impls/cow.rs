@@ -1,4 +1,5 @@
-use std::borrow::{Borrow, Cow};
+use core::borrow::Borrow;
+use std::borrow::Cow;
 
 use no_std_io::io::{Read, Seek, Write};
 
