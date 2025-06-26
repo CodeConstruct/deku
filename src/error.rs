@@ -113,5 +113,5 @@ impl From<DekuError> for std::io::Error {
     }
 }
 
-#[cfg(feature = "error_in_core")]
+#[cfg(not(feature = "std"))]
 impl core::error::Error for DekuError {}
