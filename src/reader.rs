@@ -174,37 +174,36 @@ impl<R: Read + Seek> Reader<R> {
     // TODO: maybe send into read_bytes() if amt >= 8
     #[inline]
     pub fn skip_bits(&mut self, amt: usize) -> Result<(), DekuError> {
-        #[cfg(feature = "bits")]
-        {
-            #[cfg(feature = "logging")]
-            log::trace!("skip_bits: {amt}");
+        #[cfg(feature = "logging")]
+        log::trace!("skip_bits: {amt}");
 
-            let bytes_amt = amt / 8;
-            let bits_amt = amt % 8;
+        let bytes_amt = amt / 8;
+        let bits_amt = amt % 8;
 
-            // first, seek with bytes
-            if bytes_amt != 0 {
-                self.seek(SeekFrom::Current(
-                    i64::try_from(bytes_amt).expect("could not convert seek usize into i64"),
-                ))
-                .map_err(|e| DekuError::Io(e.kind()))?;
-                self.bits_read = 0;
-            }
+        // first, seek with bytes
+        if bytes_amt != 0 {
+            self.seek(SeekFrom::Current(
+                i64::try_from(bytes_amt).expect("could not convert seek usize into i64"),
+            ))
+            .map_err(|e| DekuError::Io(e.kind()))?;
+            self.bits_read = 0;
+        }
 
-            // Unlike normal seek not counting as bits_read, this one does
-            // to keep from_bytes returns
-            self.bits_read += bytes_amt * 8;
+        // Unlike normal seek not counting as bits_read, this one does
+        // to keep from_bytes returns
+        self.bits_read += bytes_amt * 8;
 
-            // Save, and keep the leftover bits since the read will most likely be less than a byte
+        // Save, and keep the leftover bits since the read will most likely be less than a byte
+        if bits_amt != 0 {
+            #[cfg(feature = "bits")]
             self.read_bits(bits_amt, Order::Msb0)?;
+
+            #[cfg(not(feature = "bits"))]
+            return Err(DekuError::InvalidParam(
+                alloc::format!("Bit skip count not a multiple of 8: {amt}").into(),
+            ));
         }
 
-        #[cfg(not(feature = "bits"))]
-        {
-            if amt > 0 {
-                panic!("requires deku feature: bits");
-            }
-        }
         Ok(())
     }
 
