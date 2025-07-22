@@ -137,7 +137,10 @@ fn emit_struct(input: &DekuData) -> Result<TokenStream, syn::Error> {
             } else {
                 (__deku_reader.bits_read - (__deku_reader.bits_read % 8)) / 8
             };
-            Ok(((&__deku_input.0[idx..], __deku_reader.bits_read % 8), __deku_value))
+            let Some(rest) = __deku_input.0.get(idx..) else {
+                return Err(deku::DekuError::Incomplete(deku::prelude::NeedSize::new(8 * (idx - __deku_input.0.len()))));
+            };
+            Ok(((rest, __deku_reader.bits_read % 8), __deku_value))
         };
 
         tokens.extend(emit_try_from(&imp, &lifetime, &ident, wher));
@@ -254,36 +257,32 @@ fn emit_enum(input: &DekuData) -> Result<TokenStream, syn::Error> {
                 variant_id_pat.clone()
             }
         } else if has_discriminant {
-            match &input.repr {
-                None => {
+            let Some(repr) = input.repr else {
+                return Err(syn::Error::new(
+                    variant.ident.span(),
+                    "DekuRead: `id_type` must be specified on non-unit variants",
+                ));
+            };
+            if let Some(id_type) = id_type {
+                let Some(id_type_repr) = from_token(id_type.clone()) else {
                     return Err(syn::Error::new(
                         variant.ident.span(),
-                        "DekuRead: `id_type` must be specified on non-unit variants",
+                        "DekuRead: `repr` must be specified on non-unit variants",
+                    ));
+                };
+                if id_type_repr != repr {
+                    return Err(syn::Error::new(
+                        variant.ident.span(),
+                        "DekuRead: `repr` must match `id_type`",
                     ));
                 }
-                Some(repr) => {
-                    if let Some(id_type) = id_type {
-                        if let Some(id_type_repr) = from_token(id_type.clone()) {
-                            if id_type_repr != *repr {
-                                return Err(syn::Error::new(
-                                    variant.ident.span(),
-                                    "DekuRead: `repr` must match `id_type`",
-                                ));
-                            }
-                        } else {
-                            return Err(syn::Error::new(
-                                variant.ident.span(),
-                                "DekuRead: `repr` must be specified on non-unit variants",
-                            ));
-                        }
-                    }
-                }
             }
+            let repr_type: TokenStream = repr.into();
             let ident = &variant.ident;
             let internal_ident = gen_internal_field_ident(&quote!(#ident));
             pre_match_tokens.push(quote! {
                 // https://doc.rust-lang.org/reference/items/enumerations.html#r-items.enum.discriminant.access-memory
-                let #internal_ident = <#id_type>::try_from(unsafe { *(&Self::#ident as *const Self as *const #id_type) })?;
+                let #internal_ident = unsafe { *(&Self::#ident as *const Self as *const #repr_type) };
             });
             quote! { _ if __deku_variant_id == #internal_ident }
         } else {
@@ -436,7 +435,10 @@ fn emit_enum(input: &DekuData) -> Result<TokenStream, syn::Error> {
             } else {
                 (__deku_reader.bits_read - (__deku_reader.bits_read % 8)) / 8
             };
-            Ok(((&__deku_input.0[idx..], __deku_reader.bits_read % 8), __deku_value))
+            let Some(rest) = __deku_input.0.get(idx..) else {
+                return Err(deku::DekuError::Incomplete(deku::prelude::NeedSize::new(8 * (idx - __deku_input.0.len()))));
+            };
+            Ok(((rest, __deku_reader.bits_read % 8), __deku_value))
         };
 
         tokens.extend(emit_try_from(&imp, &lifetime, &ident, wher));
